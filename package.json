@@ -1,0 +1,43 @@
+{
+  "name": "office-addin",
+  "version": "0.0.0",
+  "description": "Development tools for creating Office Add-ins on Windows and Mac",
+  "keywords": [
+    "office",
+    "addin",
+    "add-in",
+    "manifest",
+    "validate",
+    "log"
+  ],
+  "author": "Tim Hall <tim.hall.engr@gmail.com> (https://github.com/timhall)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/timhall/office-addin.git"
+  },
+  "homepage": "https://github.com/timhall/office-addin",
+  "license": "MIT",
+  "main": "dist/office-addin.js",
+  "bin": {
+    "office-addin": "bin/index.js"
+  },
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "dependencies": {
+    "commander": "^2.9.0",
+    "pem": "^1.9.4"
+  },
+  "devDependencies": {
+    "rollup": "^0.41.6",
+    "rollup-plugin-buble": "^0.15.0",
+    "rollup-plugin-json": "^2.1.0"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "package.json",
+    "README.md",
+    "server.js"
+  ]
+}

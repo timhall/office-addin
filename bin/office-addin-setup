@@ -1,0 +1,177 @@
+#! /usr/bin/env node
+
+/*
+  office-addin setup
+
+  1. Create .addin-catalog in home directory
+  2. Create symlink to manifest(s) in catalog
+  3. Instructions on adding catalog to Office
+  
+  Optional: Generate certificates and trust CA
+  (not necessary, but simplifies development)
+*/
+
+const path = require('path');
+const os = require('os');
+const fs = require('fs');
+const exec = require('child_process').exec;
+const program = require('commander');
+const pem = require('pem');
+
+const isWindows = /^win/.test(process.platform);
+const pkg = require(path.join(process.cwd(), 'package.json'));
+const catalogPath = path.join(os.homedir(), '.addin-catalog');
+
+program
+  .parse(process.argv);
+
+setup({
+  certificates: {
+    folder: path.join(process.cwd(), 'certificates')
+  },
+  manifests: [
+    path.join(process.cwd(), 'manifest.xml')
+  ]
+});
+
+function setup(options) {
+  const {
+    cerificates,
+    manifests
+  } = options;
+
+  createCatalog(err => {
+    handleError(err)
+
+    linkManifests(manifests, err => {
+      handleError(err)
+
+      createCertificates(certificates.folder, err => {
+        handleError(err)
+      });
+    });
+  });
+
+  function handleError(cb) {
+    if (err) {
+      console.error(err);
+      process.exit(1);
+    }
+  }
+}
+
+function createCatalog(cb) {
+  try {
+    if (!fs.existsSync(catalogPath)){
+      fs.mkdirSync(catalogPath);
+    }
+
+    shareCatalog(catalogPath, cb);
+  } catch(err) {
+    cb(err);
+  }
+}
+
+function shareCatalog(catalogPath, cb) {
+  exec('whoami', (err, username) => {
+    if (err) return cb(err);
+
+    exec('hostname', (err, hostname) => {
+      if (err) return cb(err);
+
+      username = username.replace(/\n/g, '').trim();
+      hostname = hostname.replace(/\n/g, '').trim();
+
+      exec(`net share addin-catalog="${catalogPath}" /GRANT:${username},FULL`, (err, stdout) => {
+        // TODO Ignore existing error, "throw"" otherwise
+        cb(err);
+      });
+    });
+  });
+}
+
+function linkManifests(manifests, cb) {
+  // TODO Generate symlink of any found manifests
+}
+
+function createCertificates(folder, cb) {
+  // TODO Check for existing certificates in folder
+
+  const info = {
+    // country: '',
+    // state: '',
+    // locality: '',
+    // organization: ''
+    // unit: ''
+  };
+
+  const caOptions = Object.assign({
+    days: 365,
+    selfSigned: true,
+    commonName: 'localhost-ca'
+  }, info);
+
+  pem.createCertificate(caOptions, (err, keys) => {
+    if (err) return cb(err);
+
+    const caKey = keys.serviceKey;
+    const caCertificate = keys.certificate;
+
+    const serverOptions = Object.assign({
+      serviceKey: caKey,
+      serviceCertificate: caCertificate,
+      keyBitsize: 4096,
+      days: 365,
+      commonName: 'localhost'
+    }, info);
+
+    pem.createCertificate(serverOptions, (err, keys) => {
+      if (err) return cb(err);
+
+      const serverKey = keys.serviceKey;
+      const serverCertificate = keys.certificate;
+      const serverCSR = keys.csr;
+
+      try {
+        if (!fs.existsSync(folder)){
+          fs.mkdirSync(folder);
+        }
+
+        const caCertificatePath = path.join(folder, 'ca.crt');
+
+        fs.writeFileSync(path.join(folder, 'ca.key'), caKey);
+        fs.writeFileSync(caCertificatePath, caCertificate);
+        fs.writeFileSync(path.join(folder, 'server.key'), serverKey);
+        fs.writeFileSync(path.join(folder, 'server.crt'), serverCertificate);
+        fs.writeFileSync(path.join(folder, 'server.csr'), serverCSR);
+
+        addCAToTrusted(caCertificatePath, cb);
+      } catch(err) {
+        cb(err);
+      }
+    });
+  });
+}
+
+function addCAToTrusted(caCertificatePath, cb) {
+  if (isWindows) {
+    // Use dir to check for certmgr.exe (installed via Driver/Windows SDK)
+    // If found, add certificate automatically
+    // Otherwise, display instructions for manually adding CA to trusted root certificates
+    exec(`dir -s certmgr.exe`, (err, stdout, stderr) => {
+      if (err || true) {
+        // TODO Display instructions
+        return cb();
+      }
+
+      // TODO Use full path for certmgr (get from stdout)
+      const certmgrPath = 'certmgr.exe';
+      exec(`${certmgrPath} -add ${caCertificatePath} -s -r localMachine root`, (err, stdout, stderr) => {
+        // TODO Check for admin errors and display note about re-running as administrator
+        cb(err);
+      });
+    });
+  } else {
+    // TODO Mac
+  }
+}
