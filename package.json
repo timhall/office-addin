@@ -1,6 +1,6 @@
 {
   "name": "office-addin",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Development tools for creating Office Add-ins on Windows and Mac",
   "keywords": [
     "office",
