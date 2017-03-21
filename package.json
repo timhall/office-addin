@@ -22,7 +22,8 @@
     "office-addin": "bin/office-addin"
   },
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "prepublish": "npm run build"
   },
   "dependencies": {
     "chalk": "^1.1.3",
