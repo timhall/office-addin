@@ -16,18 +16,27 @@ const os = require('os');
 const fs = require('fs');
 const exec = require('child_process').exec;
 const program = require('commander');
+const prompt = require('prompt');
+const chalk = require('chalk');
 const pem = require('pem');
 
 const isWindows = /^win/.test(process.platform);
 const pkg = require(path.join(process.cwd(), 'package.json'));
 const catalogPath = path.join(os.homedir(), '.addin-catalog');
+let stepNumber = 1;
+let additionalSteps = [];
 
 program
+  .option('-c, --certificates [folder]')
   .parse(process.argv);
+
+const skipCertificates = !program.certificates;
+const certificatesFolder = typeof program.certificates === 'string' ? program.certificates : 'certificates';
 
 setup({
   certificates: {
-    folder: path.join(process.cwd(), 'certificates')
+    skip: skipCertificates,
+    folder: path.join(process.cwd(), certificatesFolder)
   },
   manifests: [
     path.join(process.cwd(), 'manifest.xml')
@@ -36,7 +45,7 @@ setup({
 
 function setup(options) {
   const {
-    cerificates,
+    certificates,
     manifests
   } = options;
 
@@ -46,65 +55,89 @@ function setup(options) {
     linkManifests(manifests, err => {
       handleError(err)
 
+      if (certificates.skip) {
+        return done();
+      }
+
       createCertificates(certificates.folder, err => {
-        handleError(err)
+        handleError(err);
+        done();
       });
     });
   });
 
-  function handleError(cb) {
+  function handleError(err) {
     if (err) {
       console.error(err);
       process.exit(1);
     }
   }
+
+  function done() {
+    if (additionalSteps.length) {
+      console.log();
+      console.log(chalk.yellow('Additional steps needed'));
+
+      additionalSteps.forEach(step => {
+        console.log();
+        console.log(step)
+      });
+    }
+  }
 }
 
 function createCatalog(cb) {
-  try {
-    if (!fs.existsSync(catalogPath)){
-      fs.mkdirSync(catalogPath);
-    }
+  if (isWindows) {
+    logStep('Creating Add-in Catalog');
 
-    shareCatalog(catalogPath, cb);
-  } catch(err) {
-    cb(err);
+    try {
+      if (!fs.existsSync(catalogPath)) {
+        fs.mkdirSync(catalogPath);
+      }
+
+      shareCatalog(catalogPath, cb);
+    } catch(err) {
+      cb(err);
+    }
   }
 }
 
 function shareCatalog(catalogPath, cb) {
+  logStep('Sharing Add-in Catalog');
+
   exec('whoami', (err, username) => {
     if (err) return cb(err);
 
     exec('hostname', (err, hostname) => {
       if (err) return cb(err);
 
-      username = username.replace(/\n/g, '').trim();
-      hostname = hostname.replace(/\n/g, '').trim();
+      username = trim(username);
+      hostname = trim(hostname);
 
-      exec(`net share addin-catalog="${catalogPath}" /GRANT:${username},FULL`, (err, stdout) => {
-        // TODO Ignore existing error, "throw"" otherwise
-        cb(err);
+      exec(`net share addin-catalog="${catalogPath}" /GRANT:${username},FULL`, (err, stdout, stderr) => {
+        if (err && !/The name has already been shared/.test(stderr)) {
+          // Catalog already shared, ignore
+          return cb(err);
+        } 
+        
+        cb();
       });
     });
   });
 }
 
 function linkManifests(manifests, cb) {
+  logStep('Linking Manifest(s)');
+
   // TODO Generate symlink of any found manifests
+  cb();
 }
 
 function createCertificates(folder, cb) {
+  logStep('Creating Certificates');
+
   // TODO Check for existing certificates in folder
-
-  const info = {
-    // country: '',
-    // state: '',
-    // locality: '',
-    // organization: ''
-    // unit: ''
-  };
-
+  const info = {};
   const caOptions = Object.assign({
     days: 365,
     selfSigned: true,
@@ -154,24 +187,63 @@ function createCertificates(folder, cb) {
 }
 
 function addCAToTrusted(caCertificatePath, cb) {
+  logStep('Adding certificate to trusted root certificates');
+
   if (isWindows) {
+    const windowsCAInstructions = `Add certificate to trusted root certificates
+
+  1. Open ${chalk.green(path.dirname(caCertificatePath))} in Windows Explorer
+  2. Double-click ${chalk.green('ca.crt')} and select ${chalk.bold('Install Certificate...')}
+  3. Select ${chalk.bold('Local Machine')} and select ${chalk.bold('Next')}
+  4. Select ${chalk.bold('Place all certificates in the following store')} and then select ${chalk.bold('Browse...')}
+  5. Select ${chalk.bold('Trusted Root Certificate Authorities')} and then select ${chalk.bold('OK')}
+  6. Select ${chalk.bold('Next')} and then ${chalk.bold('Finish')}`;
+
     // Use dir to check for certmgr.exe (installed via Driver/Windows SDK)
     // If found, add certificate automatically
     // Otherwise, display instructions for manually adding CA to trusted root certificates
-    exec(`dir -s certmgr.exe`, (err, stdout, stderr) => {
-      if (err || true) {
-        // TODO Display instructions
+
+    // TODO openssl is required for pem, so git-bash could be used,
+    // but `dir` is unix version for git-bash
+    // need to look into how to detect and use alternative 
+    logInfo('Looking for certmgr.exe in C:/...');
+    exec(`dir /s certmgr.exe`, {cwd: 'C:/'}, (err, stdout, stderr) => {
+      const lines = stdout && stdout.split('\n') || [];
+      const directories = lines
+        .filter(line => /Directory of/.test(line))
+        .map(line => line.replace(/Directory of/, '').trim());
+
+      if (err || stderr || !directories.length) {
+        logInfo('certmgr.exe not found');
+        additionalSteps.push(windowsCAInstructions);
         return cb();
       }
 
-      // TODO Use full path for certmgr (get from stdout)
-      const certmgrPath = 'certmgr.exe';
-      exec(`${certmgrPath} -add ${caCertificatePath} -s -r localMachine root`, (err, stdout, stderr) => {
+      logInfo('Adding certificate with certmgr.exe');
+      const certmgrPath = path.join(directories[0], 'certmgr.exe');
+      exec(`"${certmgrPath}" /add ${caCertificatePath} /c /s /r localMachine root`, (err, stdout, stderr) => {
         // TODO Check for admin errors and display note about re-running as administrator
-        cb(err);
+        if (err) {
+          additionalSteps.push(windowsCAInstructions);
+        }
+
+        cb();
       });
     });
   } else {
-    // TODO Mac
+    // TODO Mac (keychain)
   }
+}
+
+function logStep(message) {
+  console.log();
+  console.log(chalk.bold(`${stepNumber++}. ${message}`));
+}
+
+function logInfo(message) {
+  console.log(chalk.gray(`${message}`));
+}
+
+function trim(line) {
+  return line ? line.replace('\n', '').trim() : '';
 }

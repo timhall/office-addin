@@ -19,14 +19,16 @@
   "license": "MIT",
   "main": "dist/office-addin.js",
   "bin": {
-    "office-addin": "bin/index.js"
+    "office-addin": "bin/office-addin"
   },
   "scripts": {
     "build": "rollup -c"
   },
   "dependencies": {
+    "chalk": "^1.1.3",
     "commander": "^2.9.0",
-    "pem": "^1.9.4"
+    "pem": "^1.9.4",
+    "prompt": "^1.0.0"
   },
   "devDependencies": {
     "rollup": "^0.41.6",
