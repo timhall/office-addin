@@ -4,23 +4,22 @@ Development tools for creating Office Add-ins on Windows and Mac.
 `office-addin` aims to reduce a few particular pain points related to Office Add-in development:
 
 1. Setup manifest for sideloading during development
-2. Setup https certificates for localhost development
-3. Generating Add-in manifests
-4. Validating Add-in manifests
-5. Logging and error handling in Add-ins
+2. Generating an Add-in manifest
+3. Validating an Add-in manifest
+4. Logging and error handling in Add-ins
 
 ## Installation
 
 Install `office-addin` as a development dependency for your project.
 
-```
+```bash
 npm install --save-dev office-addin
 ```
 
 The most straight-forward way to call the `office-addin` command-line tools is from package.json scripts.
 The following is an example `scripts` section of a project's package.json.
 
-```
+```json
 {
   "scripts": {
     "setup": "office-addin setup",
@@ -35,7 +34,7 @@ The following is an example `scripts` section of a project's package.json.
 Initial setup for an Office Add-in can be extensive,
 `office-addin setup` aims to make it a straightforward, simple process.
 
-```
+```bash
 # Windows: Run as administrator
 npm run setup
 
@@ -78,6 +77,16 @@ addinServer.attachTo(server);
 
 // Standalone (create server and attach to given port)
 addinServer.attachTo(8080);
+```
+
+Alternative, run a standalone logging server
+
+```json
+{
+  "scripts": {
+    "start": "office-addin server"
+  }
+}
 ```
 
 Client-side, include office-addin (preferably before the project's js to catch compilation errors)
