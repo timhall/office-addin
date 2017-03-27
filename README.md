@@ -65,34 +65,37 @@ and verifies that the Add-in can be submitted to the Office Add-in Store.
 
 ## Logging
 
-`office-addin` can be used to output `console.log` and `errors` to the command line.
-There are two primary components to command line logging: server-side and client-side.
+`office-addin` can be used to output `console.log` and `onerror` to the command line.
+For logging, first install office-addin as a development dependency, `npm install --save-dev office-addin`
+and use one of the following approaches:
 
-Server-side, attach the logging server to an existing node http server:
+Attach the logging server to an existing node https server (use this if you have access to the development server):
 
 ```js
-const server = ...
-const addinServer = require('office-addin/server')();
-addinServer.attachTo(server);
+const server = ...http/https.Server (e.g. connect, express, webpack dev server)
 
-// Standalone (create server and attach to given port)
-addinServer.attachTo(8080);
+if (process.env.NODE_ENV !== 'production') {
+  require('office-addin/server').attach(server);
+}
 ```
 
-Alternative, run a standalone logging server
+If you don't have access to the development server, include `log.js` in your application and run logging server for development:
+
+```html
+<head>
+  <!-- Include log.js before your js to catch compilation errors -->
+  <script src="https://unpkg.com/office-addin"></script>
+</head>
+```
 
 ```json
 {
   "scripts": {
-    "start": "office-addin server"
+    "start": "office-addin start"
   }
 }
 ```
 
-Client-side, include office-addin (preferably before the project's js to catch compilation errors)
-
-```js
-import 'office-addin';
-```
+## Examples
 
 For details on usage with Webpack, Gulp, create-react-app, and other environments, see the examples.

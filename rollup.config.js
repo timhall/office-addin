@@ -1,5 +1,6 @@
 const json = require('rollup-plugin-json');
 const buble = require('rollup-plugin-buble');
+const uglify = require('rollup-plugin-uglify');
 const pkg = require('./package.json');
 
 const banner = `/*!
@@ -8,13 +9,13 @@ const banner = `/*!
  */`
 
 module.exports = {
-  entry: './index.js',
+  entry: 'src/index.js',
   dest: 'dist/office-addin.js',
-  format: 'umd',
-  moduleName: 'OfficeAddin',
+  format: 'iife',
   banner,
   plugins: [
     json(),
-    buble()
+    buble(),
+    uglify()
   ]
 };
