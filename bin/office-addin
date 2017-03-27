@@ -1,11 +1,52 @@
 #! /usr/bin/env node
 
+const program = require('commander');
 const pkg = require('../package.json');
-const program = require('commander')
+const DEFAULT_PORT = require('../src/defaults').DEFAULT_PORT;
+
+program.version(pkg.version)
+  
+program
+  .command('setup')
+  .description('Setup the project for Office Add-in development')
+  .option('-c, --certificates [folder]')
+  .action(function(options) {
+    const skipCertificates = !options.certificates;
+    const certificatesFolder = typeof options.certificates === 'string' ? options.certificates : 'certificates';
+
+    require('../scripts/setup')({
+      certificates: {
+        skip: skipCertificates,
+        folder: path.join(process.cwd(), certificatesFolder)
+      },
+      manifests: [
+        path.join(process.cwd(), 'manifest.xml')
+      ]
+    });
+  })
 
 program
-  .version(pkg.version)
-  .command('setup', 'Setup the project for Office Add-in development')
-  .command('generate', 'Generate an Office Add-in manifest')
-  .command('validate', 'Validate an Office Add-in manifest')
-  .parse(process.argv);
+  .command('generate')
+  .description('Generate an Office Add-in manifest')
+  .action(function() {
+    require('../scripts/generate')();
+  })
+
+program
+  .command('validate')
+  .description('Validate an Office Add-in manifest')
+  .action(function() {
+    require('../scripts/validate')();
+  });
+
+program
+  .command('start')
+  .description('start standalone logging server')
+  .option('--port, -p <port>', `port for logging server to connect to (default = ${DEFAULT_PORT})`)
+  .action(function(options) {
+    require('../scripts/start')({
+      port: options.port || DEFAULT_PORT
+    });
+  });
+
+program.parse(process.argv);

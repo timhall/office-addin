@@ -1,4 +1,16 @@
-#! /usr/bin/env node
+const path = require('path');
+const os = require('os');
+const fs = require('fs');
+const exec = require('child_process').exec;
+const prompt = require('prompt');
+const chalk = require('chalk');
+const pem = require('pem');
+
+const isWindows = /^win/.test(process.platform);
+const pkg = require(path.join(process.cwd(), 'package.json'));
+const catalogPath = path.join(os.homedir(), '.addin-catalog');
+let stepNumber = 1;
+let additionalSteps = [];
 
 /*
   office-addin setup
@@ -10,40 +22,7 @@
   Optional: Generate certificates and trust CA
   (not necessary, but simplifies development)
 */
-
-const path = require('path');
-const os = require('os');
-const fs = require('fs');
-const exec = require('child_process').exec;
-const program = require('commander');
-const prompt = require('prompt');
-const chalk = require('chalk');
-const pem = require('pem');
-
-const isWindows = /^win/.test(process.platform);
-const pkg = require(path.join(process.cwd(), 'package.json'));
-const catalogPath = path.join(os.homedir(), '.addin-catalog');
-let stepNumber = 1;
-let additionalSteps = [];
-
-program
-  .option('-c, --certificates [folder]')
-  .parse(process.argv);
-
-const skipCertificates = !program.certificates;
-const certificatesFolder = typeof program.certificates === 'string' ? program.certificates : 'certificates';
-
-setup({
-  certificates: {
-    skip: skipCertificates,
-    folder: path.join(process.cwd(), certificatesFolder)
-  },
-  manifests: [
-    path.join(process.cwd(), 'manifest.xml')
-  ]
-});
-
-function setup(options) {
+module.exports = function setup(options) {
   const {
     certificates,
     manifests
