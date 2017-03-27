@@ -1,7 +1,9 @@
+import {DEFAULT_PORT} from './defaults';
+
 if (window.location.hostname === 'localhost') {
   try {
     const toArray = value => Array.prototype.slice.call(value);
-    const port = typeof OFFICE_ADDIN_PORT !== 'undefined' ? OFFICE_ADDIN_PORT : 36001;
+    const port = typeof OFFICE_ADDIN_PORT !== 'undefined' ? OFFICE_ADDIN_PORT : config.DEFAULT_PORT;
 
     const buffered = [];
     let send = (level, messages) => buffered.push(JSON.stringify({level, messages}));

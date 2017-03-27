@@ -1,4 +1,5 @@
 const json = require('rollup-plugin-json');
+const commonjs = require('rollup-plugin-commonjs');
 const buble = require('rollup-plugin-buble');
 const uglify = require('rollup-plugin-uglify');
 const pkg = require('./package.json');
@@ -15,6 +16,9 @@ module.exports = {
   banner,
   plugins: [
     json(),
+    commonjs({
+      include: ['src/defaults.js']
+    }),
     buble(),
     uglify()
   ]
